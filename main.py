@@ -7,16 +7,17 @@ def show_menu():
     print("5. Exit")
 
 
-def add_task(tasks):
+def add_task(tasks, next_id):
     title = input("Task description: ").strip()
 
     if not title:
         print("Task description can't be empty.")
-        return
+        return next_id
 
-    task = {"title": title, "done": False}
+    task = {"id": next_id, "title": title, "done": False}
     tasks.append(task)
     print(f"Added: {title}")
+    return next_id + 1
 
 
 def list_tasks(tasks):
@@ -24,25 +25,33 @@ def list_tasks(tasks):
         print("No tasks yet.")
         return
 
-    for number, task in enumerate(tasks, start=1):
+    for task in tasks:
         status = "x" if task["done"] else " "
-        print(f"{number}. [{status}] {task['title']}")
+        print(f"{task['id']}. [{status}] {task['title']}")
 
 
-def get_task_number(tasks, action):
+def find_task(tasks, task_id):
+    for task in tasks:
+        if task["id"] == task_id:
+            return task
+    return None
+
+
+def get_task_id(tasks, action):
     list_tasks(tasks)
 
     try:
-        number = int(input(f"Task number to {action}: "))
+        task_id = int(input(f"Task id to {action}: "))
     except ValueError:
         print("Please enter a valid number.")
         return None
 
-    if number < 1 or number > len(tasks):
-        print(f"No task with number {number}.")
+    task = find_task(tasks, task_id)
+    if task is None:
+        print(f"No task with id {task_id}.")
         return None
 
-    return number
+    return task
 
 
 def remove_task(tasks):
@@ -50,12 +59,12 @@ def remove_task(tasks):
         print("No tasks to remove.")
         return
 
-    number = get_task_number(tasks, "remove")
-    if number is None:
+    task = get_task_id(tasks, "remove")
+    if task is None:
         return
 
-    removed = tasks.pop(number - 1)
-    print(f"Removed: {removed['title']}")
+    tasks.remove(task)
+    print(f"Removed: {task['title']}")
 
 
 def toggle_task(tasks):
@@ -63,11 +72,10 @@ def toggle_task(tasks):
         print("No tasks to update.")
         return
 
-    number = get_task_number(tasks, "mark")
-    if number is None:
+    task = get_task_id(tasks, "mark")
+    if task is None:
         return
 
-    task = tasks[number - 1]
     task["done"] = not task["done"]
 
     status = "completed" if task["done"] else "pending"
@@ -76,13 +84,14 @@ def toggle_task(tasks):
 
 def main():
     tasks = []
+    next_id = 1
 
     while True:
         show_menu()
         choice = input("Choose an option: ").strip()
 
         if choice == "1":
-            add_task(tasks)
+            next_id = add_task(tasks, next_id)
         elif choice == "2":
             list_tasks(tasks)
         elif choice == "3":
