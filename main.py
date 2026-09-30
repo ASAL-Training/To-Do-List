@@ -14,29 +14,26 @@ class Task:
 
 class TaskManager:
     def __init__(self):
-        self.tasks = []
-        self.next_id = 1
+        self._tasks = {}
+        self._next_id = 1
 
     def __len__(self):
-        return len(self.tasks)
+        return len(self._tasks)
+
+    def __iter__(self):
+        return iter(self._tasks.values())
 
     def add(self, title):
-        task = Task(self.next_id, title)
-        self.tasks.append(task)
-        self.next_id += 1
+        task = Task(self._next_id, title)
+        self._tasks[task.id] = task
+        self._next_id += 1
         return task
 
     def find(self, task_id):
-        for task in self.tasks:
-            if task.id == task_id:
-                return task
-        return None
+        return self._tasks.get(task_id)
 
     def remove(self, task_id):
-        task = self.find(task_id)
-        if task is not None:
-            self.tasks.remove(task)
-        return task
+        return self._tasks.pop(task_id, None)
 
     def toggle(self, task_id):
         task = self.find(task_id)
@@ -72,17 +69,23 @@ class TodoApp:
             print("No tasks yet.")
             return
 
-        for task in self.manager.tasks:
+        for task in self.manager:
             print(task)
 
     def ask_task_id(self, action):
         self.list_tasks()
 
         try:
-            return int(input(f"Task id to {action}: "))
+            task_id = int(input(f"Task id to {action}: "))
         except ValueError:
             print("Please enter a valid number.")
             return None
+
+        if task_id < 1:
+            print("Task id must be a positive number.")
+            return None
+
+        return task_id
 
     def remove_task(self):
         if len(self.manager) == 0:
