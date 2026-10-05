@@ -1,109 +1,142 @@
-def show_menu():
-    print("\n--- To-Do List ---")
-    print("1. Add Task")
-    print("2. List Tasks")
-    print("3. Remove Task")
-    print("4. Mark Task Completed/Pending")
-    print("5. Exit")
+class Task:
+    def __init__(self, task_id, title):
+        self.id = task_id
+        self.title = title
+        self.done = False
+
+    def toggle(self):
+        self.done = not self.done
+
+    def __str__(self):
+        status = "x" if self.done else " "
+        return f"{self.id}. [{status}] {self.title}"
 
 
-def add_task(tasks, next_id):
-    title = input("Task description: ").strip()
+class TaskManager:
+    def __init__(self):
+        self._tasks = {}
+        self._next_id = 1
 
-    if not title:
-        print("Task description can't be empty.")
-        return next_id
+    def __len__(self):
+        return len(self._tasks)
 
-    task = {"id": next_id, "title": title, "done": False}
-    tasks.append(task)
-    print(f"Added: {title}")
-    return next_id + 1
+    def __iter__(self):
+        return iter(self._tasks.values())
 
+    def add(self, title):
+        task = Task(self._next_id, title)
+        self._tasks[task.id] = task
+        self._next_id += 1
+        return task
 
-def list_tasks(tasks):
-    if not tasks:
-        print("No tasks yet.")
-        return
+    def find(self, task_id):
+        return self._tasks.get(task_id)
 
-    for task in tasks:
-        status = "x" if task["done"] else " "
-        print(f"{task['id']}. [{status}] {task['title']}")
+    def remove(self, task_id):
+        return self._tasks.pop(task_id, None)
 
-
-def find_task(tasks, task_id):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-    return None
-
-
-def get_task_id(tasks, action):
-    list_tasks(tasks)
-
-    try:
-        task_id = int(input(f"Task id to {action}: "))
-    except ValueError:
-        print("Please enter a valid number.")
-        return None
-
-    task = find_task(tasks, task_id)
-    if task is None:
-        print(f"No task with id {task_id}.")
-        return None
-
-    return task
+    def toggle(self, task_id):
+        task = self.find(task_id)
+        if task is not None:
+            task.toggle()
+        return task
 
 
-def remove_task(tasks):
-    if not tasks:
-        print("No tasks to remove.")
-        return
+class TodoApp:
+    def __init__(self):
+        self.manager = TaskManager()
 
-    task = get_task_id(tasks, "remove")
-    if task is None:
-        return
+    def show_menu(self):
+        print("\n--- To-Do List ---")
+        print("1. Add Task")
+        print("2. List Tasks")
+        print("3. Remove Task")
+        print("4. Mark Task Completed/Pending")
+        print("5. Exit")
 
-    tasks.remove(task)
-    print(f"Removed: {task['title']}")
+    def add_task(self):
+        title = input("Task description: ").strip()
 
+        if not title:
+            print("Task description can't be empty.")
+            return
 
-def toggle_task(tasks):
-    if not tasks:
-        print("No tasks to update.")
-        return
+        task = self.manager.add(title)
+        print(f"Added: {task.title}")
 
-    task = get_task_id(tasks, "mark")
-    if task is None:
-        return
+    def list_tasks(self):
+        if len(self.manager) == 0:
+            print("No tasks yet.")
+            return
 
-    task["done"] = not task["done"]
+        for task in self.manager:
+            print(task)
 
-    status = "completed" if task["done"] else "pending"
-    print(f"Marked as {status}: {task['title']}")
+    def ask_task_id(self, action):
+        self.list_tasks()
 
+        try:
+            task_id = int(input(f"Task id to {action}: "))
+        except ValueError:
+            print("Please enter a valid number.")
+            return None
 
-def main():
-    tasks = []
-    next_id = 1
+        if task_id < 1:
+            print("Task id must be a positive number.")
+            return None
 
-    while True:
-        show_menu()
-        choice = input("Choose an option: ").strip()
+        return task_id
 
-        if choice == "1":
-            next_id = add_task(tasks, next_id)
-        elif choice == "2":
-            list_tasks(tasks)
-        elif choice == "3":
-            remove_task(tasks)
-        elif choice == "4":
-            toggle_task(tasks)
-        elif choice == "5":
-            print("Goodbye!")
-            break
+    def remove_task(self):
+        if len(self.manager) == 0:
+            print("No tasks to remove.")
+            return
+
+        task_id = self.ask_task_id("remove")
+        if task_id is None:
+            return
+
+        task = self.manager.remove(task_id)
+        if task is None:
+            print(f"No task with id {task_id}.")
         else:
-            print("Invalid choice, please enter 1-5.")
+            print(f"Removed: {task.title}")
+
+    def toggle_task(self):
+        if len(self.manager) == 0:
+            print("No tasks to update.")
+            return
+
+        task_id = self.ask_task_id("mark")
+        if task_id is None:
+            return
+
+        task = self.manager.toggle(task_id)
+        if task is None:
+            print(f"No task with id {task_id}.")
+        else:
+            status = "completed" if task.done else "pending"
+            print(f"Marked as {status}: {task.title}")
+
+    def run(self):
+        while True:
+            self.show_menu()
+            choice = input("Choose an option: ").strip()
+
+            if choice == "1":
+                self.add_task()
+            elif choice == "2":
+                self.list_tasks()
+            elif choice == "3":
+                self.remove_task()
+            elif choice == "4":
+                self.toggle_task()
+            elif choice == "5":
+                print("Goodbye!")
+                break
+            else:
+                print("Invalid choice, please enter 1-5.")
 
 
 if __name__ == "__main__":
-    main()
+    TodoApp().run()
