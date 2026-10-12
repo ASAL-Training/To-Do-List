@@ -13,9 +13,14 @@ class Task:
 
 
 class TaskManager:
-    def __init__(self):
-        self._tasks = {}
-        self._next_id = 1
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._tasks = {}
+            cls._instance._next_id = 1
+        return cls._instance
 
     def __len__(self):
         return len(self._tasks)
@@ -42,38 +47,62 @@ class TaskManager:
         return task
 
 
-class TodoApp:
+class TaskFilter:
+    label = ""
+    empty_message = ""
+
+    def apply(self, tasks):
+        raise NotImplementedError
+
+
+class AllTasks(TaskFilter):
+    label = "All tasks"
+    empty_message = "No tasks yet."
+
+    def apply(self, tasks):
+        return list(tasks)
+
+
+class PendingTasks(TaskFilter):
+    label = "Pending tasks"
+    empty_message = "No pending tasks."
+
+    def apply(self, tasks):
+        return [task for task in tasks if not task.done]
+
+
+class CompletedTasks(TaskFilter):
+    label = "Completed tasks"
+    empty_message = "No completed tasks."
+
+    def apply(self, tasks):
+        return [task for task in tasks if task.done]
+
+
+class Command:
+    label = ""
+    exits_app = False
+
     def __init__(self):
         self.manager = TaskManager()
 
-    def show_menu(self):
-        print("\n--- To-Do List ---")
-        print("1. Add Task")
-        print("2. List Tasks")
-        print("3. Remove Task")
-        print("4. Mark Task Completed/Pending")
-        print("5. Exit")
+    def execute(self):
+        raise NotImplementedError
 
-    def add_task(self):
-        title = input("Task description: ").strip()
+    def print_tasks(self, task_filter):
+        tasks = task_filter.apply(self.manager)
 
-        if not title:
-            print("Task description can't be empty.")
-            return
+        if not tasks:
+            print(task_filter.empty_message)
+            return False
 
-        task = self.manager.add(title)
-        print(f"Added: {task.title}")
-
-    def list_tasks(self):
-        if len(self.manager) == 0:
-            print("No tasks yet.")
-            return
-
-        for task in self.manager:
+        for task in tasks:
             print(task)
+        return True
 
     def ask_task_id(self, action):
-        self.list_tasks()
+        if not self.print_tasks(AllTasks()):
+            return None
 
         try:
             task_id = int(input(f"Task id to {action}: "))
@@ -87,11 +116,54 @@ class TodoApp:
 
         return task_id
 
-    def remove_task(self):
-        if len(self.manager) == 0:
-            print("No tasks to remove.")
+
+class AddTaskCommand(Command):
+    label = "Add Task"
+
+    def execute(self):
+        title = input("Task description: ").strip()
+
+        if not title:
+            print("Task description can't be empty.")
             return
 
+        task = self.manager.add(title)
+        print(f"Added: {task.title}")
+
+
+class ListTasksCommand(Command):
+    label = "List Tasks"
+
+    def __init__(self):
+        super().__init__()
+        self.filters = {
+            "1": AllTasks(),
+            "2": PendingTasks(),
+            "3": CompletedTasks(),
+        }
+
+    def execute(self):
+        if len(self.manager) == 0:
+            print("No tasks yet.")
+            return
+
+        for key, task_filter in self.filters.items():
+            print(f"{key}. {task_filter.label}")
+
+        choice = input("Choose a view: ").strip()
+        task_filter = self.filters.get(choice)
+
+        if task_filter is None:
+            print(f"Invalid choice, please enter 1-{len(self.filters)}.")
+            return
+
+        self.print_tasks(task_filter)
+
+
+class RemoveTaskCommand(Command):
+    label = "Remove Task"
+
+    def execute(self):
         task_id = self.ask_task_id("remove")
         if task_id is None:
             return
@@ -102,11 +174,11 @@ class TodoApp:
         else:
             print(f"Removed: {task.title}")
 
-    def toggle_task(self):
-        if len(self.manager) == 0:
-            print("No tasks to update.")
-            return
 
+class ToggleTaskCommand(Command):
+    label = "Mark Task Completed/Pending"
+
+    def execute(self):
         task_id = self.ask_task_id("mark")
         if task_id is None:
             return
@@ -118,24 +190,43 @@ class TodoApp:
             status = "completed" if task.done else "pending"
             print(f"Marked as {status}: {task.title}")
 
+
+class ExitCommand(Command):
+    label = "Exit"
+    exits_app = True
+
+    def execute(self):
+        print("Goodbye!")
+
+
+class TodoApp:
+    def __init__(self):
+        self.commands = {
+            "1": AddTaskCommand(),
+            "2": ListTasksCommand(),
+            "3": RemoveTaskCommand(),
+            "4": ToggleTaskCommand(),
+            "5": ExitCommand(),
+        }
+
+    def show_menu(self):
+        print("\n--- To-Do List ---")
+        for key, command in self.commands.items():
+            print(f"{key}. {command.label}")
+
     def run(self):
         while True:
             self.show_menu()
             choice = input("Choose an option: ").strip()
 
-            if choice == "1":
-                self.add_task()
-            elif choice == "2":
-                self.list_tasks()
-            elif choice == "3":
-                self.remove_task()
-            elif choice == "4":
-                self.toggle_task()
-            elif choice == "5":
-                print("Goodbye!")
+            command = self.commands.get(choice)
+            if command is None:
+                print(f"Invalid choice, please enter 1-{len(self.commands)}.")
+                continue
+
+            command.execute()
+            if command.exits_app:
                 break
-            else:
-                print("Invalid choice, please enter 1-5.")
 
 
 if __name__ == "__main__":
